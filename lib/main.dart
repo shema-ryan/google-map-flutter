@@ -43,7 +43,7 @@ class _MapState extends State<Map> {
   String _placeDistance;
 
   //helper function
-  Future<void> _getAddress() async {
+  Future<void> _getAddressAndLocation() async {
     Placemark place;
     try {
       await geoLocator
@@ -58,6 +58,14 @@ class _MapState extends State<Map> {
         startAddressController.text = _currentAddress;
         _startAddress = _currentAddress;
       });
+      List<Placemark> startPlaceMark =
+          await geoLocator.placemarkFromAddress(_startAddress);
+      List<Placemark> destinationPlaceMark =
+          await geoLocator.placemarkFromAddress(_destinationAddress);
+
+// Retrieving coordinates
+      Position startCoordinates = startPlaceMark[0].position;
+      Position destinationCoordinates = destinationPlaceMark[0].position;
     } catch (e) {
       print(e.toString());
     }
