@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import './Screen/customTextField.dart';
 
 void main() {
   runApp(MyApp());
@@ -31,11 +32,36 @@ class Map extends StatefulWidget {
 class _MapState extends State<Map> {
   //helper variables
   Position _currentPosition;
-  GeolocatorPlatform geoLocator = GeolocatorPlatform.instance;
-
+  Geolocator geoLocator = Geolocator();
   CameraPosition _initialLocation = CameraPosition(target: LatLng(0.0, 0.0));
   GoogleMapController mapController;
-  //helper functions
+  final startAddressController = TextEditingController();
+  final destinationAddressController = TextEditingController();
+  String _currentAddress;
+  String _startAddress = '';
+  String _destinationAddress = '';
+  String _placeDistance;
+
+  //helper function
+  Future<void> _getAddress() async {
+    Placemark place;
+    try {
+      await geoLocator
+          .placemarkFromCoordinates(
+              _currentPosition.latitude, _currentPosition.longitude)
+          .then((p) {
+        place = p[0];
+      });
+      setState(() {
+        _currentAddress =
+            "${place.name}, ${place.locality}, ${place.postalCode}, ${place.country}";
+        startAddressController.text = _currentAddress;
+        _startAddress = _currentAddress;
+      });
+    } catch (e) {
+      print(e.toString());
+    }
+  }
 
   Future<void> getCurrentLocation() async {
     await geoLocator
@@ -47,12 +73,24 @@ class _MapState extends State<Map> {
               print(_currentPosition);
             }));
     mapController
-        .animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
-      target: LatLng(_currentPosition.latitude, _currentPosition.longitude),
-    )))
+        .animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+            target:
+                LatLng(_currentPosition.latitude, _currentPosition.longitude),
+            zoom: 12),
+      ),
+    )
         .catchError((e) {
       print(e.toString());
     });
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    getCurrentLocation();
+    super.initState();
   }
 
   @override
