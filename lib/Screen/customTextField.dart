@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class CustomTextField {
-  Widget textField({
+  static Widget textField({
     TextEditingController controller,
     String label,
     String hint,
