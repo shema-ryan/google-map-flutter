@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import './Screen/customTextField.dart';
@@ -42,9 +43,34 @@ class _MapState extends State<Map> {
   String _destinationAddress = '';
   String _placeDistance;
   Set<Marker> markers = {};
-  // final _scaffoldKey = GlobalKey<ScaffoldState>();
-
+  PolylinePoints polylinePoints;
+  List<LatLng> polylineCoordinates = [];
+  Set<Polyline> polyline = {};
+  // final _scaffoldKey = GlobalKey<ScaffoldState>();R
   //helper function
+  Future<void> _createPolyLinePoints(
+      Position start, Position destination) async {
+    polylinePoints = PolylinePoints();
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+        'AIzaSyAb3gV4RogsdL9SkFYMHXdzAsNFo7C_Hpc',
+        PointLatLng(start.latitude, start.longitude),
+        PointLatLng(destination.latitude, destination.longitude),
+        travelMode: TravelMode.driving);
+    if (result.points.isNotEmpty) {
+      result.points.forEach((PointLatLng point) {
+        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      });
+      polyline.add(Polyline(
+          width: 4,
+          color: Theme.of(context).accentColor,
+          polylineId: PolylineId('$_currentPosition'),
+          points: polylineCoordinates,
+          endCap: Cap.roundCap,
+          startCap: Cap.buttCap,
+          visible: true));
+    }
+  }
+
   Future<void> _getAddress() async {
     Placemark place;
     try {
@@ -154,6 +180,7 @@ class _MapState extends State<Map> {
             100.0, // padding
           ),
         );
+        await _createPolyLinePoints(startCoordinates, destinationCoordinates);
       }
     } catch (e) {
       print(e.toString());
@@ -179,6 +206,7 @@ class _MapState extends State<Map> {
         child: Stack(
           children: <Widget>[
             GoogleMap(
+              polylines: markers != null ? polyline : null,
               markers: markers != null ? Set<Marker>.from(markers) : null,
 //              markers: markers,
               initialCameraPosition: _initialLocation,
