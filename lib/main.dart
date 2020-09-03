@@ -3,6 +3,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import './Screen/customTextField.dart';
+import 'dart:math' show cos, asin, sqrt;
 
 void main() {
   runApp(MyApp());
@@ -46,7 +47,7 @@ class _MapState extends State<Map> {
   PolylinePoints polylinePoints;
   List<LatLng> polylineCoordinates = [];
   Set<Polyline> polyline = {};
-  // final _scaffoldKey = GlobalKey<ScaffoldState>();R
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   //helper function
   Future<void> _createPolyLinePoints(
       Position start, Position destination) async {
@@ -78,8 +79,7 @@ class _MapState extends State<Map> {
           .placemarkFromCoordinates(
               _currentPosition.latitude, _currentPosition.longitude)
           .then((p) {
-        place = p[0]; //most preferred one
-        print('${place.name}');
+        place = p[0]; //most preferred one);
       });
       setState(() {
         _currentAddress =
@@ -117,7 +117,7 @@ class _MapState extends State<Map> {
     });
   }
 
-  Future<bool> calculateDistance() async {
+  Future<bool> _calculateDistance() async {
     try {
       List<Placemark> startPlaceMark =
           await geoLocator.placemarkFromAddress(_startAddress);
@@ -151,9 +151,7 @@ class _MapState extends State<Map> {
         markers.add(destinationMarker);
         Position _northeastCoordinates;
         Position _southwestCoordinates;
-        print(
-            's lat : ${startCoordinates.latitude}  d lat :${destinationCoordinates.latitude}');
-// Calculating to check that
+// Calculating to check t
 // southwest coordinate <= northeast coordinate
         if (startCoordinates.latitude <= destinationCoordinates.latitude) {
           _southwestCoordinates = startCoordinates;
@@ -165,7 +163,8 @@ class _MapState extends State<Map> {
 
 // Accommodate the two locations within the
 // camera view of the map
-        mapController.animateCamera(
+        mapController
+            .animateCamera(
           CameraUpdate.newLatLngBounds(
             LatLngBounds(
               northeast: LatLng(
@@ -179,8 +178,35 @@ class _MapState extends State<Map> {
             ),
             100.0, // padding
           ),
-        );
+        )
+            .then((value) {
+          mapController.animateCamera(CameraUpdate.zoomIn());
+        });
         await _createPolyLinePoints(startCoordinates, destinationCoordinates);
+        double distance = 0.0;
+        double _coordinateDistance(lat1, lon1, lat2, lon2) {
+          var p = 0.017453292519943295;
+          var c = cos;
+          var a = 0.5 -
+              c((lat2 - lat1) * p) / 2 +
+              c(lat1 * p) * c(lat2 * p) * (1 - c((lon2 - lon1) * p)) / 2;
+          return 12742 * asin(sqrt(a));
+        }
+
+        for (int i = 0; i < polylineCoordinates.length - 1; i++) {
+          distance += _coordinateDistance(
+            polylineCoordinates[i].latitude,
+            polylineCoordinates[i].longitude,
+            polylineCoordinates[i + 1].latitude,
+            polylineCoordinates[i + 1].longitude,
+          );
+        }
+
+// Storing the calculated total distance of the route
+        setState(() {
+          _placeDistance = distance.toStringAsFixed(2);
+          print('DISTANCE: $_placeDistance km');
+        });
       }
     } catch (e) {
       print(e.toString());
@@ -200,6 +226,7 @@ class _MapState extends State<Map> {
     final double height = MediaQuery.of(context).size.height;
     final double width = MediaQuery.of(context).size.width;
     return Scaffold(
+      key: _scaffoldKey,
       body: Container(
         height: height,
         width: width,
@@ -287,42 +314,40 @@ class _MapState extends State<Map> {
                           ),
                           SizedBox(height: 5),
                           RaisedButton(
-                            onPressed: () async {
-                              await calculateDistance().then((bool selected) {
-                                setState(() {});
-                              });
-                            },
-//                            onPressed: (_startAddress != '' &&
-//                                _destinationAddress != '')
-//                                ? () async {
-//                              setState(() {
-//                                if (markers.isNotEmpty) markers.clear();
-//                                if (polylines.isNotEmpty)
-//                                  polylines.clear();
-//                                if (polylineCoordinates.isNotEmpty)
-//                                  polylineCoordinates.clear();
-//                                _placeDistance = null;
-//                              });
-//
-//                              _calculateDistance().then((isCalculated) {
-//                                if (isCalculated) {
-//                                  _scaffoldKey.currentState.showSnackBar(
-//                                    SnackBar(
-//                                      content: Text(
-//                                          'Distance Calculated Sucessfully'),
-//                                    ),
-//                                  );
-//                                } else {
-//                                  _scaffoldKey.currentState.showSnackBar(
-//                                    SnackBar(
-//                                      content: Text(
-//                                          'Error Calculating Distance'),
-//                                    ),
-//                                  );
-//                                }
-//                              });
-//                            }
-//                                : null,
+                            onPressed: (_startAddress != '' &&
+                                    _destinationAddress != '')
+                                ? () async {
+                                    setState(() {
+//                                      polyline.clear();
+//                                      markers.clear();
+//                                      polylineCoordinates.clear();
+//                                      _placeDistance = null;
+                                      if (markers.isNotEmpty) markers.clear();
+                                      if (polyline.isNotEmpty) polyline.clear();
+                                      if (polylineCoordinates.isNotEmpty)
+                                        polylineCoordinates.clear();
+                                      _placeDistance = null;
+                                    });
+                                    await _calculateDistance().then((value) {
+                                      if (value) {
+                                        _scaffoldKey.currentState
+                                            .showSnackBar(SnackBar(
+                                          content: Text('Good to go'),
+                                          action: SnackBarAction(
+                                            onPressed: () {},
+                                            label: 'UNDO',
+                                          ),
+                                        ));
+                                      } else {
+                                        _scaffoldKey.currentState
+                                            .showSnackBar(SnackBar(
+                                          content: Text('an Error occurred!'),
+                                        ));
+                                      }
+                                      setState(() {});
+                                    });
+                                  }
+                                : null,
                             color: Theme.of(context).primaryColor,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20.0),
